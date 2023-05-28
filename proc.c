@@ -294,7 +294,9 @@ int
         p->state=UNUSED;
         // stack=p->threadstack;
         p->threadstack=0;
-        retval=p->ret;
+        cprintf("join in p->ret %d\n",*(int*)p->ret);
+        int* mainret=(int*)retval; // 역참조 포인터
+        *mainret=*(int*)p->ret; //메인의 변수에 스레드의 ret값을 넣는다
         release(&ptable.lock);
         return 0;
       }
@@ -309,13 +311,17 @@ int
 
 void
 thread_exit(void *retval){
-  int a=(int)retval;
-  cprintf("this is thread exit in %d\n",a );
-  cprintf("exit retval : %d\n", retval);
-  cprintf("exit int retval : %d\n", (int)retval);
-  cprintf("exit retval : %d\n", a);
+  int a = *(int*)retval;
+  // cprintf("this is thread exit in %d\n",a );
+  // cprintf("exit retval : %d\n", retval);
+  // cprintf("exit int retval : %d\n", (int)retval);
+  cprintf("exit a is : %d\n", a);
   struct proc *p = myproc();
+  // cprintf("exit is pid=%d\n",p->pid);
+  // cprintf("exit is tid=%d\n",p->tid);
   p->ret=retval;
+  cprintf("retval %d\n",p->ret);
+
   // return 0;
 }
 
