@@ -89,3 +89,43 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+int sys_clone(void){
+  int fcn, arg1, arg2, stack;
+  if(argint(0,&fcn)<0 || argint(1,&arg1)<0 || argint(2,&arg2)<0 || argint(3,&stack)<0)
+    return -1;
+  return clone((void *)fcn, (void *)arg1,(void *)arg2, (void *)stack);
+}
+int
+sys_join(void)
+{
+  // void **stack;
+  // int stackArg;
+  // stackArg = argint(0, &stackArg);
+  // stack = (void**) stackArg;
+  // return join(stack);
+  thread_t arg1;
+  void** retval;
+  int int_retval;
+  if(argint(0, &arg1) < 0  ){
+    return -1;
+  }
+  int_retval=argint(1,&int_retval);
+  retval=(void**) int_retval;
+  return join(arg1,retval);
+}
+
+// int sys_thread_exit(void){
+// 	void *retval;
+//     if (argptr(0, (void*)&retval, sizeof(void *)) < 0)
+//       return -1;
+//     thread_exit(retval);
+//     return 0;
+// }
+int sys_thread_exit(void){
+	void* retval;
+  int int_retval;
+  int_retval=argint(0,&int_retval);
+  retval=(void*) int_retval;
+  thread_exit(retval);
+  return 0;
+}

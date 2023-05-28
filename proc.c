@@ -220,6 +220,104 @@ fork(void)
 
   return pid;
 }
+int
+clone( void*(*fcn)(void*,void*),void *arg1, void *arg2, void* stack){
+  struct proc *np;
+  struct proc *p=myproc();
+
+  //allocat process
+  if((np=allocproc())==0)
+    return -1;
+  // p와 np 가 같은 부분
+  np->pgdir = p->pgdir;
+  np->sz=p->sz;
+  np->parent=p;
+  np->tid=np->pid;
+  np->pid=np->parent->pid;
+  *np->tf=*p->tf;
+
+  void *sarg1 , *sarg2, *sret;
+  sret=stack+ PGSIZE -3 * sizeof(void *);
+  *(uint*)sret=0xFFFFFFF; // 모름 FFFFFFFF
+// 여기 stack 의 주소가 어디인지 알아 내
+  sarg1=stack+PGSIZE-2*sizeof(void *); // 모름 void *  의 크기는 4byte?
+  *(uint*)sarg1=(uint)arg1;
+  sarg2=stack+PGSIZE-1*sizeof(void *);
+  *(uint*)sarg2=(uint)arg2;
+
+  np->tf->esp=(uint)stack;
+  //save address of stack
+  np->threadstack=stack;
+//
+  np->tf->esp+=PGSIZE-3*sizeof(void*); 
+  np->tf->ebp=np->tf->esp; //tf 가 뭐지? 일단 esp = ebp
+  np->tf->eip=(uint) fcn; // 스레드의 명령어 포인터는 함수포인터
+  np->tf->eax=0; // eax 를 0 으로 변경 
+  int i;
+  for(i=0;i<NOFILE;i++){ // 파일 fd 복사
+    if(p->ofile[i]){
+      np->ofile[i]=filedup(p->ofile[i]);
+    }
+  }
+  np->cwd=idup(p->cwd);
+  safestrcpy(np->name, p->name, sizeof(p->name));
+  acquire(&ptable.lock);
+  np->state=RUNNABLE; // 생성한 스레드는 실행 준비
+  release(&ptable.lock);
+  return np->tid;
+}
+int
+// join(void** stack ){
+  join(thread_t id,void** retval){
+  struct proc *p;
+  int havekids;
+  // int tid;
+  // int pid;
+  struct proc *cp =myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    havekids=0;
+    for(p=ptable.proc;p<&ptable.proc[NPROC];p++){
+      if(p->tid != id || p->parent != cp ||  p->pgdir != p->parent->pgdir)
+        continue;
+      havekids=1;
+      if(p->state==ZOMBIE){
+        // tid=p->tid;
+        kfree(p->kstack);
+        p->kstack=0;
+        p->tid=0;
+        p->pid=0;
+        p->parent=0;
+        p->name[0]=0;
+        p->killed=0;
+        p->state=UNUSED;
+        // stack=p->threadstack;
+        p->threadstack=0;
+        retval=p->ret;
+        release(&ptable.lock);
+        return 0;
+      }
+    }
+    if(!havekids || cp->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+    sleep(cp,&ptable.lock);
+  }
+}
+
+void
+thread_exit(void *retval){
+  int a=(int)retval;
+  cprintf("this is thread exit in %d\n",a );
+  cprintf("exit retval : %d\n", retval);
+  cprintf("exit int retval : %d\n", (int)retval);
+  cprintf("exit retval : %d\n", a);
+  struct proc *p = myproc();
+  p->ret=retval;
+  // return 0;
+}
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
@@ -532,3 +630,42 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+//set memory 여기
+// int setmemorylimit(int pid, int limit){ //이상한건 제한을 한다고해도 limt 값만 셋팅 하고 실제 제한하는 코드는 아님  요구사항 만 충족함 
+//   struct proc *p;
+//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//     if(p->pid ==pid && p->sz > limit){ // ptable에서 원하는  pid 찾기 + size 제한 비교
+//       p->limt=limit; // 리밋 설정
+//       break; // 반복문 탈출
+//     }else{// 원하는 pid 가 없거나 || 현재 프로세스의 크키가 제한보다 크면
+//       return -1;
+//     }
+//   }
+//   return 0;// 성공시 0 리턴
+// }
+
+// struct proc getpcb(int pid){
+//   struct proc *p;
+//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//     if(p->pid==pid){
+//       return p;
+//     }
+//   }
+//   return -1;
+// }
+// void listall(){
+//   struct proc *p;
+//   cprintf("Name Pid Memsize Limit StackPage \n"); // 상단 속성 표시
+//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//     if(p->state=="run   " || p->state=="runble" || p->state=="sleep "){ // 나중에 더 넣고 싶은 속성 있으면 여기에 ||(이거나 사용)
+//       cprintf("%s %d %u %u %u", p->name, p->pid, p->sz, p->stackpage, p->limt); // 서식 지정자 하고 proc 속성 추가
+//     }
+//   }
+// }
+
+// void thread_create(void *argv){
+//   if((np=allocproc())==0){
+//     return -1;
+//   }
+// }

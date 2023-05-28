@@ -120,6 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             cps(void);
+int             chpr(int pid, int priority);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -155,6 +157,10 @@ int             argstr(int, char**);
 int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);
+int             clone(void* (*fcn)(void*,void*),void*,void*,void*);
+// int             join(void**);
+int             join(thread_t,void**);
+void             thread_exit(void* );
 
 // timer.c
 void            timerinit(void);
